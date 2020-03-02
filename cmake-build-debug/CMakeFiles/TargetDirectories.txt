@@ -1,0 +1,3 @@
+C:/Users/User/CLionProjects/DataMass/cmake-build-debug/CMakeFiles/DataMass.dir
+C:/Users/User/CLionProjects/DataMass/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/Users/User/CLionProjects/DataMass/cmake-build-debug/CMakeFiles/rebuild_cache.dir

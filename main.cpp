@@ -11,10 +11,10 @@
 int findMaxMin(Data* data, float &min, float &max, int startLine, int columnNumber) {
     max = 0;
     int i = startLine;
-    float well = data->data[startLine][0];
-    while(data->data[i][0] == well && data->data[i][columnNumber] < 0) {
-        i++;
-    }
+    //float well = data->data[startLine][0];
+    //while(data->data[i][0] == well && data->data[i][columnNumber] < 0) {
+    //    i++;
+    //}
     min = data->data[i][columnNumber];
     int line, returnLine = data->data.size();
 
@@ -29,16 +29,16 @@ int findMaxMin(Data* data, float &min, float &max, int startLine, int columnNumb
         }
 
         if(!(data->data[line][data->data[line].size() - 1] == -1.0 && data->data[line][data->data[line].size() - 2] == -1.0 && shouldCheck)) {
-            if (well == data->data[line][0]) {
+            //if (well == data->data[line][0]) {
                 float val = data->data[line][columnNumber];
                 if (min > val)
                     min = val;
                 if (max < val)
                     max = val;
-            } else {
-                returnLine = line;
-                line = data->data.size();
-            }
+            //} else {
+            //    returnLine = line;
+            //    line = data->data.size();
+            //}
         }
     }
     return returnLine;
@@ -239,33 +239,70 @@ void gistForEveryS(Data* data) {
     }
 }
 
-std::vector<float> createGist(std::map<float, int> values, float min, float h, int n) {
-    std::vector<float> gist;
-    gist.clear();
-    int elNum = 0;
-    for(int i = 0; i < n; i++)
-        gist.push_back(0.0);
 
-    //for(auto val : values) {
-    for(auto val  = values.begin(); val != values.end(); val++) {
+void calkGainRatio(Data* data, std::vector<std::string> names) {
+    int totalColNum = data->totalColNum - 3;
+    std::map<float, Attr*> column;
+    int totalElNum = 0;
 
-            for (int j = 0; j < n; j++) {
-                float rightValue = (float)(min + h * ((float)j + 1.0f));
-                float mapValue =  (float)(val->first);
-                float leftValue = (float)(min + h * (float)j);
-                if (mapValue >= leftValue && mapValue <= rightValue) {
-                    gist[j] += val->second;
-                    elNum++;
-                    j = n;
-                }
+    for (int col = 0; col < totalColNum; col++) {
+        for (int line = 0; line < data->data.size(); line++) {
+            bool shouldCheck = false;
+            if (data->data[line].size() != data->totalColNum) {
+                shouldCheck = true;
+            } else {
+                if (data->data[line][data->data[line].size() - 3] == -1.0)
+                    shouldCheck = true;
+            }
+
+            if (!(data->data[line][data->data[line].size() - 1] == -1.0 &&
+                  data->data[line][data->data[line].size() - 2] == -1.0 && shouldCheck)) {
+                    std::vector<float> reCol;
+                    reCol.push_back(-1.0);
+                    reCol.push_back(-1.0);
+                    reCol.push_back(-1.0);
+
+                    if(!shouldCheck) {
+                        reCol[0] = data->data[line][data->data[line].size() - 3];
+                        if(data->data[line][data->data[line].size() - 2] != -1.0)
+                            reCol[1] = data->data[line][data->data[line].size() - 2];
+                        if(data->data[line][data->data[line].size() - 1] != -1.0)
+                            reCol[2] = data->data[line][data->data[line].size() - 1];
+                    }
+                    else {
+                        if(data->data[line][data->data[line].size() - 2] != -1.0)
+                            reCol[0] = data->data[line][data->data[line].size() - 2];
+                        if(data->data[line][data->data[line].size() - 1] != -1.0)
+                            reCol[1] = data->data[line][data->data[line].size() - 1];
+                    }
+
+                    totalElNum++;
+                    auto foundEl = column.find(data->data[line][col]);
+                    if(foundEl == column.end()) {
+                        Attr* atr = new Attr();
+                        atr->count = 1;
+                        atr->resColumns.insert(std::pair<std::vector<float>, int>(reCol, 1));
+                        column.insert(std::pair<float, Attr*>(data->data[line][col], atr));
+                    } else {
+                        auto foundRes = foundEl->second->resColumns.find(reCol);
+                        if(foundRes == foundEl->second->resColumns.end()) {
+                            foundEl->second->resColumns.insert(std::pair<std::vector<float>, int>(reCol, 1));
+                            foundEl->second->count++;
+                        }
+                        else {
+                            foundRes->second++;
+                            foundEl->second->count++;
+                        }
+                    }
             }
         }
-
-    for(int i = 0; i < n; i++)
-        gist[i] = gist[i]/((float)(elNum));
-    return gist;
+        float gainR = GainRatio::gainRatio(column, totalElNum);
+        std::cout << "Column number " << col << " , GR = " << gainR << "\n";
+        for(auto elem : column)
+            delete[](elem.second);
+        column.clear();
+    }
 }
-
 
 //last line not included
 std::vector<float> calcEmpty(Data *data, int startLine, int lastLine) {
@@ -300,15 +337,23 @@ std::vector<float> calcEmpty(Data *data, int startLine, int lastLine) {
     return emptyVec;
 }
 
-void calkUnique(Data* data) {
-    //СЃРґРІРёРЅСѓС‚С‹ РєРѕР»РѕРЅРєРё
+void calkUnique(Data* data, std::vector<std::string> names) {
+    //сдвинуты колонки
+    std::fstream fs;
+    fs.open ("unique.csv", std::fstream::in | std::fstream::out | std::fstream::app);
+
+
     std::vector<std::map<float, int>> stat;
+    std::vector<int> countEl;
     stat.clear();
     int columnsNum = data->totalColNum - 3;
     int totalLinesNumber = data->data.size();
+    int countLines = 0;
+
     for(int i = 0; i < columnsNum - 1; i++) {
         std::map<float, int> oneColumn;
         stat.push_back(oneColumn);
+        countEl.push_back(0);
     }
 
     for(int line = 0; line < totalLinesNumber; line++) {
@@ -317,8 +362,10 @@ void calkUnique(Data* data) {
                 auto foundEl = stat[col - 1].find(data->data[line][col]);
                 if (foundEl != stat[col - 1].end()) {
                     (foundEl->second)++;
+                    countEl[col - 1]++;
                 } else {
                     stat[col - 1].insert(std::pair<float, int>(data->data[line][col], 1));
+                    countEl[col - 1]++;
                 }
             }
         }
@@ -326,17 +373,20 @@ void calkUnique(Data* data) {
 
     for(int l = 0; l < stat.size(); l++) {
         auto col = stat[l];
-        int n = sterdFormula(totalLinesNumber);
-        float max = col.rbegin()->first;
-        float min = col.begin()->first;
-        float h = interval(min, max, n);
-        std::vector<float> gist = createGist(col, min, h, n);
+        //int n = sterdFormula(totalLinesNumber);
+        //float max = col.rbegin()->first;
+        //float min = col.begin()->first;
+        //float h = interval(min, max, n);
+        //std::vector<float> gist = createGist(col, min, h, n);
         std::cout << "\n------------\n" << "Column number: " << l << "\n";
-        for(auto el : gist) {
-            std::cout << el;
-            std::cout << " ,";
+        fs << names[l + 2] << ";";
+        for(auto el : col) {
+            std::cout << "(" << el.first << ", " << el.second/((float)countEl[l]) << ")\n";
+            fs << el.first << ";" << el.second;
         }
+        fs << "\n";
     }
+    fs.close();
 }
 
 //float gainRatio(std::vector<float> gist, float h, ) {}
@@ -372,24 +422,40 @@ float calkCorr(Data* data, int firstColumnNumber, int secondColumnNumber) {
     return up/std::sqrt(downx*downy);
 }
 
-void createCorrTable(Data* data) {
+void createCorrTable(Data* data, std::vector<std::string> &names) {
+    std::fstream fs;
+    fs.open ("cor.csv", std::fstream::in | std::fstream::out | std::fstream::app);
+    fs << ";";
+    for(int i = 0; i < names.size(); i++)
+        fs << names[i + 2] << ";";
+    fs << "\n";
+
     int totalColNum = data->totalColNum - 4;
     float corrTable[totalColNum][totalColNum];
     for(int i = 0; i < totalColNum; i++) {
+        fs << names[i + 2] << ";";
+
         for(int j = 0; j < totalColNum; j++) {
-            if(i != j) {
+            //if(i != j) {
+                corrTable[i][j] = 0.0;
                 corrTable[i][j] = calkCorr(data, i + 1, j + 1);
-                std::cout << corrTable[i][j] << "   Colimn numbers: " << i + 1 << ", " << j + 1 << " \n";
-            }
+                std::cout << corrTable[i][j] << "   Colimn names: " << names[i + 2] << ", " << names[j+2] << " \n";
+                //if(j < totalColNum - 1)
+                fs << corrTable[i][j] << ";";
+                //else
+                //    fs << corrTable[i][j];
+                //}
         }
+        fs << "\n";
     }
 
-
+    fs.close();
 }
 
 int main() {
     Data data;
-    CSVParser::readAndStoreData("file.csv", &data);
+    std::vector<std::string> names;
+    CSVParser::readAndStoreData("file.csv", &data, names);
 
     std::vector<float> emptyVec;
     emptyVec = calcEmpty(&data, 0, data.data.size());
@@ -397,13 +463,13 @@ int main() {
     std::cout << "\nEmpty gist:\n";
     for(int i = 0; i < emptyVec.size(); i++) {
         auto el = emptyVec[i];
-        std::cout <<"Column " << i << ", " << el;
+        std::cout <<"Column " << i + 1 << ", " << el;
         std::cout << "\n";
     }
     std::cout << "\n-------------\n" << "Correlation table:\n";
-    createCorrTable(&data);
+    createCorrTable(&data, names);
     std::cout << "\n-------------\n" << "Unique gist:\n";
-    calkUnique(&data);
-    gistForEveryS(&data);
+    calkUnique(&data, names);
+    calkGainRatio(&data, names);
     return 0;
 }

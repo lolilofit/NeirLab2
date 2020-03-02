@@ -1,7 +1,7 @@
 #include <iostream>
 #include "CSVParser.h"
 
-void CSVParser::readAndStoreData(const std::string& fileName, Data* data) {
+void CSVParser::readAndStoreData(const std::string& fileName, Data* data, std::vector<std::string> &names) {
 
     std::ifstream in;
     in.open("..\\resources\\" + fileName);
@@ -14,6 +14,7 @@ void CSVParser::readAndStoreData(const std::string& fileName, Data* data) {
             std::stringstream s(line);
             while (getline(s, token, ';')) {
                 cnt++;
+                names.push_back(token);
             }
             data->totalColNum = cnt - 1;
         }

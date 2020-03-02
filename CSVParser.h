@@ -10,5 +10,5 @@
 
 class CSVParser {
 public:
-	void static readAndStoreData(const std::string& fileName, Data* data);
+	void static readAndStoreData(const std::string& fileName, Data* data, std::vector<std::string> &names);
 };
